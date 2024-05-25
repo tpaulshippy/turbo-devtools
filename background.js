@@ -1,4 +1,4 @@
-function toggleDebugStylesheet() {
+function toggleDebugStylesheet(state) {
   var path = 'turbo-frame/debug.css'
   var href = chrome.runtime.getURL(path)
   var linkElement = document.querySelectorAll('link[href="' + href + '"]')[0]
@@ -6,9 +6,10 @@ function toggleDebugStylesheet() {
 
   if (!turboFrames.length) return
 
-  if (linkElement) {
+  if (state === 'OFF' && linkElement) {
     linkElement.remove()
-  } else {
+  }
+  else if (state === 'ON') {
     var head = document.getElementsByTagName('head')[0]
     var link = document.createElement('link')
     link.rel = 'stylesheet'
@@ -18,11 +19,25 @@ function toggleDebugStylesheet() {
   }
 }
 
-chrome.action.onClicked.addListener(tab => {
-  if (!tab.url.includes('chrome://')) {
-    chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      function: toggleDebugStylesheet
-    })
-  }
-})
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.action.setBadgeText({
+    text: "OFF",
+  });
+});
+chrome.action.onClicked.addListener(async (tab) => {
+  if (tab.url.includes('chrome://')) return;
+
+  const prevState = await chrome.action.getBadgeText({ tabId: tab.id });
+  const nextState = prevState === 'ON' ? 'OFF' : 'ON'
+
+  chrome.action.setBadgeText({
+    text: nextState,
+  });
+
+  chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    function: toggleDebugStylesheet,
+    args: [nextState]
+  })
+});
+
